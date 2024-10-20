@@ -68,7 +68,7 @@ scooby_data <- scooby_source %>%
 #| code-fold: true
 
 fear_01prior_a <- 2
-fear_01prior_b <- 14
+fear_01prior_b <- 2
 
 
 p_fear_prior <- plot_beta_binomial(alpha = fear_01prior_a , beta = fear_01prior_b , 
@@ -80,7 +80,7 @@ p_fear_prior + labs(title = paste("Beta(", fear_01prior_a, ", ", fear_01prior_b,
 ```
 
 -   **Rationale:**<br> <font color="#4b2f70">
-<b>Fear</b> is not confident about the probability of unmasking, so $\pi$ would be near $0$. Considering Fear is not confident about his answer, so his distribution might higher than $0$. We picked $\alpha = 2$ and $\beta=14$  such that $\pi=0.125$, based on the beta distribution expectation: $E[\pi]= \frac{\alpha}{\alpha + \beta}$
+<b>Fear</b> is not confident about the probability of unmasking, so $\pi$ can be set as  $0.50$. Considering Fear is not confident about his answer, the his distribution will have a wide shape, large variance. We picked $\alpha = 2$ and $\beta=2$  such that $\pi=0.50$ and $V[\pi]=0.50$, based on the beta distribution expectation: $E[\pi]= \frac{\alpha}{\alpha + \beta}$
 </font>
 
 ## Ennui Prior Distribution
