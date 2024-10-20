@@ -1,0 +1,816 @@
+---
+title: "<center>A Bayesian Exploration on Scooby Doo <span style='color:red'>Villain</span> Unmasking</center>"
+subtitle: "Does the villain's motive impact the likelihood of successful capture in Scooby Doo episodes?"
+author: "Curtis, RK, Hooman, Johnny"
+execute:
+  echo: false
+  warning: false
+  message: false
+  error: true
+format:
+  revealjs:
+    # smaller: true
+    scrollable: true
+  # html:
+    embed-resources: true
+editor: source
+code-fold: true
+---
+
+
+```{r}
+#| label: library
+#| code-fold: true
+library(bayesrules)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(RCurl)
+library(ggpubr)
+scooby_path <- getURL('https://raw.githubusercontent.com/rfordatascience/tidytuesday/refs/heads/master/data/2021/2021-07-13/scoobydoo.csv')
+scooby_source <- read.csv(text = scooby_path)
+rm(scooby_path)
+names(scooby_source) <- gsub("\\W","_",names(scooby_source))
+# Data Prep
+scooby_data <- scooby_source %>% 
+  mutate(unmasked = if_else(unmask_fred =="TRUE" | 
+                              unmask_daphnie=="TRUE" | 
+                              unmask_velma=="TRUE" | 
+                              unmask_shaggy=="TRUE" |
+                              unmask_scooby=="TRUE" | 
+                              unmask_other =="TRUE", 1,0),
+         year = year(date_aired)
+         ) %>% 
+  mutate(decade = case_when(year <=1969 ~ "1960-1969",
+                            year <=1979 ~ "1970-1979",
+                            year <=1989 ~ "1980-1989",
+                            year <=1999 ~ "1990-1999",
+                            year <=2009 ~ "2000-2009",
+                            year <=2019 ~ "2010-2019",
+                            year <=2029 ~ "2020-2029",
+                            )) %>% 
+  mutate(motive_cat = case_when(motive == "Theft" ~ "theft",
+                                motive == "Competition" ~ "competition",
+                                motive %in% c("Conquer","Abduction","Extortion", "Trespassing") ~ "power",
+                                motive %in% c("Treasure", "Smuggling", "Inheritance") ~ "greed",
+                                TRUE ~ "else"
+    
+  )) %>% 
+  mutate(season1 = if_else(year == 1969,1,0)) %>% 
+  select(unmasked, motive_cat, season1, year, decade)
+```
+
+
+## Fear Prior Distribution 
+
+```{r}
+#| fig-align: center
+#| code-fold: true
+
+fear_01prior_a <- 2
+fear_01prior_b <- 14
+
+
+p_fear_prior <- plot_beta_binomial(alpha = fear_01prior_a , beta = fear_01prior_b , 
+                                   likelihood = F, posterior = F, prior = T) + 
+  labs(title = "Prior: Fear") +
+  guides(fill = FALSE)  
+  
+p_fear_prior + labs(title = paste("Beta(", fear_01prior_a, ", ", fear_01prior_b, ")", sep="" ))
+```
+
+-   **Rationale:**<br> <font color="#4b2f70">
+<b>Fear</b> is not confident about the probability of unmasking, so $\pi$ would be near $0$. Considering Fear is not confident about his answer, so his distribution might higher than $0$. We picked $\alpha = 2$ and $\beta=14$  such that $\pi=0.125$, based on the beta distribution expectation: $E[\pi]= \frac{\alpha}{\alpha + \beta}$
+</font>
+
+## Ennui Prior Distribution
+
+```{r}
+#| fig-align: center
+#| code-fold: true
+#| 
+Ennui_01prior_a <- 1
+Ennui_01prior_b <- 1
+
+# Plot
+p_Ennui_prior <- plot_beta_binomial(alpha = Ennui_01prior_a, beta = Ennui_01prior_b, likelihood = F, posterior = F, prior = T) + 
+  labs(title = "Prior: Ennui") +
+  guides(fill = FALSE) 
+  
+p_Ennui_prior + labs(title = paste("Beta(", Ennui_01prior_a, ", ", Ennui_01prior_b, ")", sep="" ))
+
+```
+
+-   **Rationale:**<br> <font color="#4b2f70">
+<b>Ennui</b> shrugs when asked each question, which means that there is not much information from her. That is, we are uncertain about her thought about $\pi$.
+</font>
+
+## Joy Prior Distribution
+
+```{r}
+#| fig-align: center
+#| code-fold: true
+#| cache: true
+#| 
+joy_01prior_a <- 9
+joy_01prior_b <- 1
+
+# Plot
+p_joy_prior <- plot_beta_binomial(alpha = joy_01prior_a , beta = joy_01prior_b , 
+                                   likelihood = F, posterior = F, prior = T) + 
+  labs(title = "Prior: Joy") +
+  guides(fill = FALSE)  
+  
+p_joy_prior + labs(title = paste("Beta(", joy_01prior_a, ", ", joy_01prior_b, ")", sep="" ))
+```
+
+-   **Rationale:** <br> <font color="#4b2f70">
+<b>Joy</b> is very certain about the unmasking, and very confident about her answer, so I set the expectation of $\pi$ to $0.90$ by setting $\alpha=9$
+and $\beta=1$.</font>
+
+<!-- -   **Group 4:** Curtis, RK, Hooman, Johnny -->
+
+<!-- Group members will divide and conquer the data categories in their respective areas. The outcome of interest is if the villain was unmasked or not (*unmasked*, created earlier). -->
+
+<!-- In this project, you will: -->
+
+<!-- 1.  Use the data from 1969 (first season) to update each character's prior. What are their posterior distributions? -->
+
+<!-- 2.  Perform sequential analysis and update the posterior distribution for each decade that data was collected. -->
+
+<!-- 3.  Evaluate and describe the progression of beliefs of each emotion. -->
+
+<!--     -   Are the beliefs *different* based on the characteristics explored by your group? -->
+
+<!--         -   Note: We have not formally learned Bayesian inference -- I am asking you to use the occular method of analysis for now. -->
+
+<!-- Then, your group will create a 10 minute presentation (yes, with Quarto slides) to discuss the progression of beliefs. -->
+
+<!-- -   Because the audience of your presentation is at the same level of understanding, no introductory explanations of Bayesian analysis are necessary. -->
+
+<!-- -   Please organize your presentation as you see fit. What is the story that your group wants to tell? Do you want to tell the story character-by-character? Decade-by-decade? -->
+
+<!-- -   **Professional development:** Create a gif using [`gganimate`](https://gganimate.com/) that demonstrates the characters' understanding over time. -->
+
+
+
+
+
+```{r}
+#| code-fold: true
+#| 
+# Variables
+motive_categories <- "theft"
+decade_list <- scooby_data$decade %>% unique() %>% sort()
+
+# Filter df to motive categories and decade
+observation <- scooby_data %>% 
+  filter(decade == decade_list[1],
+         motive_cat == motive_categories)
+
+# Season 1 Observations
+obs_y = observation$unmasked %>% sum()
+obs_n = observation$unmasked %>% length()
+
+fear_69posterior_a <- summarize_beta_binomial(alpha = fear_01prior_a, beta = fear_01prior_b, y = obs_y, n = obs_n)[2,2]
+fear_69posterior_b <- summarize_beta_binomial(alpha = fear_01prior_a, beta = fear_01prior_b, y = obs_y, n = obs_n)[2,3]
+
+Ennui_69posterior_a <- summarize_beta_binomial(alpha = Ennui_01prior_a, beta = Ennui_01prior_b, y = obs_y, n = obs_n)[2,2]
+Ennui_69posterior_b <- summarize_beta_binomial(alpha = Ennui_01prior_a, beta = Ennui_01prior_b, y = obs_y, n = obs_n)[2,3]
+
+joy_69posterior_a <- summarize_beta_binomial(alpha = joy_01prior_a, beta = joy_01prior_b,y = obs_y, n = obs_n)[2,2]
+joy_69posterior_b <- summarize_beta_binomial(alpha = joy_01prior_a, beta = joy_01prior_b,y = obs_y, n = obs_n)[2,3]
+
+# Plot 60s
+p_fear_Season_1 <- plot_beta_binomial(alpha = fear_69posterior_a, beta = fear_69posterior_b) + 
+  labs(title = "Season-1") +  guides(fill = FALSE)  
+
+p_joy_Season_1 <- plot_beta_binomial(alpha = joy_69posterior_a, beta = joy_69posterior_b) + 
+  labs(title = "Season-1") +  guides(fill = FALSE)  
+
+p_Ennui_Season_1 <- plot_beta_binomial(alpha = Ennui_69posterior_a, beta = Ennui_69posterior_b) + 
+  labs(title = "Season-1") +  guides(fill = FALSE)  
+```
+
+```{r}
+#| code-fold: true
+#| 
+# Filter df to motive categories and decade
+observation <- scooby_data %>% 
+  filter(decade == decade_list[2],
+         motive_cat == motive_categories)
+
+# Season 2 Observations
+obs_y = observation$unmasked %>% sum()
+obs_n = observation$unmasked %>% length()
+
+fear_79posterior_a <- summarize_beta_binomial(alpha = fear_69posterior_a, beta = fear_69posterior_b, y = obs_y, n = obs_n)[2,2]
+fear_79posterior_b <- summarize_beta_binomial(alpha = fear_69posterior_a, beta = fear_69posterior_b, y = obs_y, n = obs_n)[2,3]
+
+Ennui_79posterior_a <- summarize_beta_binomial(alpha = Ennui_69posterior_a , beta = Ennui_69posterior_b, y = obs_y, n = obs_n)[2,2]
+Ennui_79posterior_b <- summarize_beta_binomial(alpha = Ennui_69posterior_a , beta = Ennui_69posterior_b, y = obs_y, n = obs_n)[2,3]
+
+joy_79posterior_a <- summarize_beta_binomial(alpha = joy_69posterior_a, beta = joy_69posterior_b , y = obs_y, n = obs_n)[2,2]
+joy_79posterior_b <- summarize_beta_binomial(alpha = joy_69posterior_a, beta = joy_69posterior_b , y = obs_y, n = obs_n)[2,3]
+
+# Plot 70s
+p_fear_79 <- plot_beta_binomial(alpha = fear_79posterior_a, beta = fear_79posterior_b) + 
+  labs(title = decade_list[2]) +  guides(fill = FALSE)  
+
+p_joy_79 <- plot_beta_binomial(alpha = joy_79posterior_a, beta = joy_79posterior_b) + 
+  labs(title = decade_list[2]) +  guides(fill = FALSE)  
+
+p_Ennui_79 <- plot_beta_binomial(alpha = Ennui_79posterior_a, beta = Ennui_79posterior_b) + 
+  labs(title = decade_list[2]) +  guides(fill = FALSE)  
+```
+
+```{r}
+#| code-fold: true
+#| 
+# Filter df to motive categories and decade
+observation <- scooby_data %>% 
+  filter(decade == decade_list[3],
+         motive_cat == motive_categories)
+
+# Season 3 Observations
+obs_y = observation$unmasked %>% sum()
+obs_n = observation$unmasked %>% length()
+
+fear_89posterior_a <- summarize_beta_binomial(alpha = fear_79posterior_a, beta = fear_79posterior_b , y = obs_y, n = obs_n)[2,2]
+fear_89posterior_b <- summarize_beta_binomial(alpha = fear_79posterior_a, beta = fear_79posterior_b , y = obs_y, n = obs_n)[2,3]
+
+Ennui_89posterior_a <- summarize_beta_binomial(alpha = Ennui_79posterior_a , beta = Ennui_79posterior_b , y = obs_y, n = obs_n)[2,2]
+Ennui_89posterior_b <- summarize_beta_binomial(alpha = Ennui_79posterior_a , beta = Ennui_79posterior_b , y = obs_y, n = obs_n)[2,3]
+
+joy_89posterior_a <- summarize_beta_binomial(alpha = joy_79posterior_a , beta = joy_79posterior_b ,y = obs_y, n = obs_n)[2,2]
+joy_89posterior_b <- summarize_beta_binomial(alpha = joy_79posterior_a , beta = joy_79posterior_b ,y = obs_y, n = obs_n)[2,3]
+
+# Plot 80s
+p_fear_89 <- plot_beta_binomial(alpha = fear_89posterior_a, beta = fear_89posterior_b) + 
+  labs(title = decade_list[3]) +  guides(fill = FALSE)  
+
+p_joy_89 <- plot_beta_binomial(alpha = joy_89posterior_a, beta = joy_89posterior_b) + 
+  labs(title = decade_list[3]) +  guides(fill = FALSE)  
+
+p_Ennui_89 <- plot_beta_binomial(alpha = Ennui_89posterior_a, beta = Ennui_89posterior_b) + 
+  labs(title = decade_list[3]) +  guides(fill = FALSE)  
+```
+
+```{r}
+#| code-fold: true
+#| 
+# Filter df to motive categories and decade
+observation <- scooby_data %>% 
+  filter(decade == decade_list[4],
+         motive_cat == motive_categories)
+
+# Season 3 Observations
+obs_y = observation$unmasked %>% sum()
+obs_n = observation$unmasked %>% length()
+
+fear_99posterior_a <- summarize_beta_binomial(alpha = fear_89posterior_a, beta = fear_89posterior_b , y = obs_y, n = obs_n)[2,2]
+fear_99posterior_b <- summarize_beta_binomial(alpha = fear_89posterior_a, beta = fear_89posterior_b , y = obs_y, n = obs_n)[2,3]
+
+Ennui_99posterior_a <- summarize_beta_binomial(alpha = Ennui_89posterior_a , beta = Ennui_89posterior_b , y = obs_y, n = obs_n)[2,2]
+Ennui_99posterior_b <- summarize_beta_binomial(alpha = Ennui_89posterior_a , beta = Ennui_89posterior_b , y = obs_y, n = obs_n)[2,3]
+
+joy_99posterior_a <- summarize_beta_binomial(alpha = joy_89posterior_a , beta = joy_89posterior_b ,y = obs_y, n = obs_n)[2,2]
+joy_99posterior_b <- summarize_beta_binomial(alpha = joy_89posterior_a , beta = joy_89posterior_b ,y = obs_y, n = obs_n)[2,3]
+
+# Plot 90s
+p_fear_99 <- plot_beta_binomial(alpha = fear_99posterior_a, beta = fear_99posterior_b) + 
+  labs(title = decade_list[4]) +  guides(fill = FALSE)  
+
+p_joy_99 <- plot_beta_binomial(alpha = joy_99posterior_a, beta = joy_99posterior_b) + 
+  labs(title = decade_list[4]) +  guides(fill = FALSE)  
+
+p_Ennui_99 <- plot_beta_binomial(alpha = Ennui_99posterior_a, beta = Ennui_99posterior_b) + 
+  labs(title = decade_list[4]) +  guides(fill = FALSE)  
+```
+
+```{r}
+#| code-fold: true
+#| 
+# Filter df to motive categories and decade
+observation <- scooby_data %>% 
+  filter(decade == decade_list[5],
+         motive_cat == motive_categories)
+
+# Season 3 Observations
+obs_y = observation$unmasked %>% sum()
+obs_n = observation$unmasked %>% length()
+
+fear_09posterior_a <- summarize_beta_binomial(alpha = fear_99posterior_a, beta = fear_99posterior_b , y = obs_y, n = obs_n)[2,2]
+fear_09posterior_b <- summarize_beta_binomial(alpha = fear_99posterior_a, beta = fear_99posterior_b , y = obs_y, n = obs_n)[2,3]
+
+Ennui_09posterior_a <- summarize_beta_binomial(alpha = Ennui_99posterior_a , beta = Ennui_99posterior_b , y = obs_y, n = obs_n)[2,2]
+Ennui_09posterior_b <- summarize_beta_binomial(alpha = Ennui_99posterior_a , beta = Ennui_99posterior_b , y = obs_y, n = obs_n)[2,3]
+
+joy_09posterior_a <- summarize_beta_binomial(alpha = joy_99posterior_a , beta = joy_99posterior_b ,y = obs_y, n = obs_n)[2,2]
+joy_09posterior_b <- summarize_beta_binomial(alpha = joy_99posterior_a , beta = joy_99posterior_b ,y = obs_y, n = obs_n)[2,3]
+
+# Plot 00s
+p_fear_09 <- plot_beta_binomial(alpha = fear_09posterior_a, beta = fear_09posterior_b) + 
+  labs(title = decade_list[5]) +  guides(fill = FALSE)  
+
+p_joy_09 <- plot_beta_binomial(alpha = joy_09posterior_a, beta = joy_09posterior_b) + 
+  labs(title = decade_list[5]) +  guides(fill = FALSE)  
+
+p_Ennui_09 <- plot_beta_binomial(alpha = Ennui_09posterior_a, beta = Ennui_09posterior_b) + 
+  labs(title = decade_list[5]) +  guides(fill = FALSE)  
+```
+
+```{r}
+#| code-fold: true
+#| 
+# Filter df to motive categories and decade
+observation <- scooby_data %>% 
+  filter(decade == decade_list[6],
+         motive_cat == motive_categories)
+
+# Season 3 Observations
+obs_y = observation$unmasked %>% sum()
+obs_n = observation$unmasked %>% length()
+
+fear_19posterior_a <- summarize_beta_binomial(alpha = fear_09posterior_a, beta = fear_09posterior_b , y = obs_y, n = obs_n)[2,2]
+fear_19posterior_b <- summarize_beta_binomial(alpha = fear_09posterior_a, beta = fear_09posterior_b , y = obs_y, n = obs_n)[2,3]
+
+Ennui_19posterior_a <- summarize_beta_binomial(alpha = Ennui_09posterior_a , beta = Ennui_09posterior_b , y = obs_y, n = obs_n)[2,2]
+Ennui_19posterior_b <- summarize_beta_binomial(alpha = Ennui_09posterior_a , beta = Ennui_09posterior_b , y = obs_y, n = obs_n)[2,3]
+
+joy_19posterior_a <- summarize_beta_binomial(alpha = joy_09posterior_a , beta = joy_09posterior_b ,y = obs_y, n = obs_n)[2,2]
+joy_19posterior_b <- summarize_beta_binomial(alpha = joy_09posterior_a , beta = joy_09posterior_b ,y = obs_y, n = obs_n)[2,3]
+
+# Plot 10s
+p_fear_19 <- plot_beta_binomial(alpha = fear_19posterior_a, beta = fear_19posterior_b) + 
+  labs(title = decade_list[6]) +  guides(fill = FALSE)  
+
+p_joy_19 <- plot_beta_binomial(alpha = joy_19posterior_a, beta = joy_19posterior_b) + 
+  labs(title = decade_list[6]) +  guides(fill = FALSE)  
+
+p_Ennui_19 <- plot_beta_binomial(alpha = Ennui_19posterior_a, beta = Ennui_19posterior_b) + 
+  labs(title = decade_list[6]) +  guides(fill = FALSE) 
+```
+
+```{r}
+#| code-fold: true
+#| 
+# Filter df to motive categories and decade
+observation <- scooby_data %>% 
+  filter(decade == decade_list[7],
+         motive_cat == motive_categories)
+
+# Season 3 Observations
+obs_y = observation$unmasked %>% sum()
+obs_n = observation$unmasked %>% length()
+
+fear_29posterior_a <- summarize_beta_binomial(alpha = fear_19posterior_a, beta = fear_19posterior_b , y = obs_y, n = obs_n)[2,2]
+fear_29posterior_b <- summarize_beta_binomial(alpha = fear_19posterior_a, beta = fear_19posterior_b , y = obs_y, n = obs_n)[2,3]
+
+Ennui_29posterior_a <- summarize_beta_binomial(alpha = Ennui_19posterior_a , beta = Ennui_19posterior_b , y = obs_y, n = obs_n)[2,2]
+Ennui_29posterior_b <- summarize_beta_binomial(alpha = Ennui_19posterior_a , beta = Ennui_19posterior_b , y = obs_y, n = obs_n)[2,3]
+
+joy_29posterior_a <- summarize_beta_binomial(alpha = joy_19posterior_a , beta = joy_19posterior_b ,y = obs_y, n = obs_n)[2,2]
+joy_29posterior_b <- summarize_beta_binomial(alpha = joy_19posterior_a , beta = joy_19posterior_b ,y = obs_y, n = obs_n)[2,3]
+
+## Plot 20s
+# Plot fear
+p_fear_29 <- plot_beta_binomial(alpha = fear_19posterior_a, 
+                                beta = fear_19posterior_b , 
+                                y = obs_y, 
+                                n = obs_n,
+                                prior = F, likelihood = F) +
+  labs(title = decade_list[7] )  +  guides(fill = FALSE)
+
+# Plot Joy
+p_joy_29 <- plot_beta_binomial(alpha = joy_19posterior_a, 
+                                beta = joy_19posterior_b , 
+                                y = obs_y, 
+                                n = obs_n,
+                                prior = F, likelihood = F) +
+  labs(title = decade_list[7] )  +  guides(fill = FALSE) 
+
+p_Ennui_29 <- plot_beta_binomial(alpha = Ennui_19posterior_a, 
+                                beta = Ennui_19posterior_b , 
+                                y = obs_y, 
+                                n = obs_n,
+                                prior = F, likelihood = F) +
+  labs(title = decade_list[7]  ) +  guides(fill = FALSE) 
+```
+
+```{r}
+#| code-fold: true
+#| 
+decade_list2 <- append("prior", decade_list )
+  
+# Ennui Alpha list
+df_a_Ennui <- c(Ennui_01prior_a, 
+                Ennui_69posterior_a, 
+                Ennui_79posterior_a, 
+                Ennui_89posterior_a, 
+                Ennui_99posterior_a, 
+                Ennui_09posterior_a,
+                Ennui_19posterior_a,
+                Ennui_29posterior_a)
+# Ennui beta list
+df_b_Ennui <- c(Ennui_01prior_b, 
+                Ennui_69posterior_b, 
+                Ennui_79posterior_b, 
+                Ennui_89posterior_b, 
+                Ennui_99posterior_b, 
+                Ennui_09posterior_b,
+                Ennui_19posterior_b,
+                Ennui_29posterior_b)
+
+# Ennui df
+df_Ennui <- tibble(alpha = df_a_Ennui,  beta =df_b_Ennui, decade = decade_list2, name = "Ennui")
+
+```
+
+```{r}
+#| code-fold: true
+#| 
+  
+# fear Alpha list
+df_a_fear <- c(fear_01prior_a, 
+                fear_69posterior_a, 
+                fear_79posterior_a, 
+                fear_89posterior_a, 
+                fear_99posterior_a, 
+                fear_09posterior_a,
+                fear_19posterior_a,
+                fear_29posterior_a)
+# fear beta list
+df_b_fear <- c(fear_01prior_b, 
+                fear_69posterior_b, 
+                fear_79posterior_b, 
+                fear_89posterior_b, 
+                fear_99posterior_b, 
+                fear_09posterior_b,
+                fear_19posterior_b,
+                fear_29posterior_b)
+
+# fear df
+df_fear <- tibble(alpha = df_a_fear,  beta =df_b_fear, decade = decade_list2, name = "fear")
+```
+
+```{r}
+#| code-fold: true
+#| 
+  
+# joy Alpha list
+df_a_joy <- c(joy_01prior_a, 
+                joy_69posterior_a, 
+                joy_79posterior_a, 
+                joy_89posterior_a, 
+                joy_99posterior_a, 
+                joy_09posterior_a,
+                joy_19posterior_a,
+                joy_29posterior_a)
+# joy beta list
+df_b_joy <- c(joy_01prior_b, 
+                joy_69posterior_b, 
+                joy_79posterior_b, 
+                joy_89posterior_b, 
+                joy_99posterior_b, 
+                joy_09posterior_b,
+                joy_19posterior_b,
+                joy_29posterior_b)
+
+# joy df
+df_joy <- tibble(alpha = df_a_joy,  beta =df_b_joy, decade = decade_list2, name = "joy")
+
+# Remove ENV. Objects
+rm(list = c("joy_29posterior_a","joy_29posterior_b", "Ennui_29posterior_a", "Ennui_29posterior_b", "fear_29posterior_a",  "fear_29posterior_b",
+            "joy_19posterior_a","joy_19posterior_b", "Ennui_19posterior_a", "Ennui_19posterior_b", "fear_19posterior_a",  "fear_19posterior_b",
+            "joy_09posterior_a","joy_09posterior_b", "Ennui_09posterior_a", "Ennui_09posterior_b", "fear_09posterior_a",  "fear_09posterior_b",
+            "joy_99posterior_a","joy_99posterior_b", "Ennui_99posterior_a", "Ennui_99posterior_b", "fear_99posterior_a",  "fear_99posterior_b",
+            "joy_89posterior_a","joy_89posterior_b", "Ennui_89posterior_a", "Ennui_89posterior_b", "fear_89posterior_a",  "fear_89posterior_b",
+            "joy_79posterior_a","joy_79posterior_b", "Ennui_79posterior_a", "Ennui_79posterior_b", "fear_79posterior_a",  "fear_79posterior_b",
+            "joy_69posterior_a","joy_69posterior_b", "Ennui_69posterior_a", "Ennui_69posterior_b", "fear_69posterior_a",  "fear_69posterior_b"
+            ))
+```
+
+<!-- **Data Categories:** Create a new variable that classifies the villain's motive (*motive*) into the following four groups: -->
+
+<!-- -   Theft : theft -->
+<!-- -   Competition : Competition -->
+<!-- -   Conquer, abduction, extortion, or trespassing : power -->
+<!-- -   Treasure, smuggling, or inheritance :greed -->
+
+## Villian Motive Theft: Fear Iteration
+
+```{r}
+#| code-fold: true
+# Calc. Y Max
+# Create dummy df from character df
+df <- df_fear
+
+# Empty vector 
+max_densities <- numeric(nrow(df))
+
+# Loop through df rows and Calc the max density
+for (i in 3:nrow(df)) {
+  alpha <- df$alpha[i]
+  beta <- df$beta[i]
+  
+  # Calc the Beta distribution mode
+  mode <- (alpha - 1) / (alpha + beta - 2)
+  
+  # Calculate the mode max density
+  max_densities[i] <- dbeta(mode, alpha, beta)
+}
+
+# Find the max max-density
+yMax <- round(max(max_densities), 0) +1
+
+# Plot Fear
+ggarrange(p_fear_prior + ylim(NA, yMax), p_fear_Season_1 + ylim(NA, yMax), p_fear_79 + ylim(NA, yMax), p_fear_89 + ylim(NA, yMax), p_fear_99 + ylim(NA, yMax), p_fear_09 + ylim(NA, yMax), p_fear_19 + ylim(NA, yMax), p_fear_29 + ylim(NA, yMax),
+          ncol = 4, nrow = 2)
+rm(df_fear)
+```
+<br>
+
+## Villian Motive Theft: Ennui Iteration
+
+
+```{r}
+# Calc. Y Max
+df <- df_Ennui
+
+# Empty vector 
+max_densities <- numeric(nrow(df))
+
+# Loop through df rows and Calc the max density
+for (i in 3:nrow(df)) {
+  alpha <- df$alpha[i]
+  beta <- df$beta[i]
+  
+  # Calc the Beta distribution mode
+  mode <- (alpha - 1) / (alpha + beta - 2)
+  
+  # Calculate the mode max density
+  max_densities[i] <- dbeta(mode, alpha, beta)
+}
+
+# Find the max max-density
+yMax <- round(max(max_densities), 0) +1
+
+# Plot Ennui
+ggarrange(p_Ennui_prior + ylim(NA, yMax), p_Ennui_Season_1 + ylim(NA, yMax), p_Ennui_79 + ylim(NA, yMax), p_Ennui_89 + ylim(NA, yMax), p_Ennui_99 + ylim(NA, yMax), p_Ennui_09 + ylim(NA, yMax), p_Ennui_19 + ylim(NA, yMax), p_Ennui_29 + ylim(NA, yMax),
+          ncol = 4, nrow = 2)
+rm(df_Ennui)
+```
+<br>
+
+## Villian Motive Theft: Joy Iteration
+
+```{r}
+# Calc. Y Max
+df <- df_joy
+
+# Empty vector 
+max_densities <- numeric(nrow(df))
+
+# Loop through df rows and Calc the max density
+for (i in 3:nrow(df)) {
+  alpha <- df$alpha[i]
+  beta <- df$beta[i]
+  
+  # Calc the Beta distribution mode
+  mode <- (alpha - 1) / (alpha + beta - 2)
+  
+  # Calculate the mode max density
+  max_densities[i] <- dbeta(mode, alpha, beta)
+}
+
+# Find the max max-density
+yMax <- round(max(max_densities), 0) +1
+
+# Plot joy
+ggarrange(p_joy_prior + ylim(NA, yMax), p_joy_Season_1 + ylim(NA, yMax), p_joy_79 + ylim(NA, yMax), p_joy_89 + ylim(NA, yMax), p_joy_99 + ylim(NA, yMax), p_joy_09 + ylim(NA, yMax), p_joy_19 + ylim(NA, yMax), p_joy_29 + ylim(NA, yMax),
+          ncol = 4, nrow = 2)
+rm(df_joy)
+```
+
+## Prior and motive impact on the posterior: Villian Motive Theft
+
+```{r}
+## Motive
+crime <- stringr::str_to_title(motive_categories)
+observation <- scooby_data %>% 
+  filter(motive_cat == motive_categories)
+
+# Observations For the Motive
+obs_y = observation$unmasked %>% sum()
+obs_n = observation$unmasked %>% length()
+
+mean_fear <- summarize_beta_binomial(alpha = fear_01prior_a, beta = fear_01prior_b,
+                                 y = obs_y, n = obs_n)[2,4] 
+mean_fear <- mean_fear %>% round(2)
+
+mean_Ennui <- summarize_beta_binomial(alpha = Ennui_01prior_a, beta = Ennui_01prior_b,
+                                 y = obs_y, n = obs_n)[2,4]
+mean_Ennui <- mean_Ennui %>% round(2)
+
+mean_joy <- summarize_beta_binomial(alpha = joy_01prior_a, beta = joy_01prior_b,
+                                 y = obs_y, n = obs_n)[2,4] 
+mean_joy <- mean_joy %>% round(2)
+
+p_fear_prior <- p_fear_prior + ylim(NA, yMax)
+p_fear_29 <- p_fear_29 + ylim(NA, yMax) + labs(title = paste("Posterior: ", crime )) + geom_text(x=0.75, y = yMax*.75, label =paste("Mean=",mean_fear))
+
+p_Ennui_prior <- p_Ennui_prior + ylim(NA, yMax)
+p_Ennui_29 <- p_Ennui_29 + ylim(NA, yMax) + labs(title = paste("Posterior: ", crime )) + geom_text(x=0.75, y = yMax*.75, label=paste("Mean=",mean_Ennui))
+
+p_joy_prior <- p_joy_prior + ylim(NA, yMax)
+p_joy_29 <- p_joy_29 + ylim(NA, yMax) + labs(title = paste("Posterior: ", crime ) ) + geom_text(x=0.75, y = yMax*.75, label=paste("Mean=",mean_joy))
+
+
+## Observation all episodes
+observation <- scooby_data
+
+obs_y = observation$unmasked %>% sum()
+obs_n = observation$unmasked %>% length()
+
+mean_fear <- summarize_beta_binomial(alpha = fear_01prior_a, beta = fear_01prior_b,
+                                 y = obs_y, n = obs_n)[2,4] 
+mean_fear <- mean_fear %>% round(2)
+
+mean_Ennui <- summarize_beta_binomial(alpha = Ennui_01prior_a, beta = Ennui_01prior_b,
+                                 y = obs_y, n = obs_n)[2,4]
+mean_Ennui <- mean_Ennui %>% round(2)
+
+mean_joy <- summarize_beta_binomial(alpha = joy_01prior_a, beta = joy_01prior_b,
+                                 y = obs_y, n = obs_n)[2,4] 
+mean_joy <- mean_joy %>% round(2)
+
+p_all_fear <- plot_beta_binomial(alpha = fear_01prior_a, beta = fear_01prior_b,
+                                 y = obs_y, n = obs_n, likelihood = F, prior = F) +
+  guides(fill = FALSE) + 
+  geom_text(x=0.75, y = yMax*.75, label = paste("Mean=",mean_fear) ) +
+  labs(title = "Posterior: All Crimes")
+
+p_all_joy <- plot_beta_binomial(alpha = joy_01prior_a, beta = joy_01prior_b,
+                                 y = obs_y, n = obs_n, likelihood = F, prior = F) +
+  guides(fill = FALSE) + 
+  geom_text(x=0.75, y = yMax*.75, label = paste("Mean=",mean_joy) )+
+  labs(title = "Posterior: All Crimes")
+
+p_all_Ennui <- plot_beta_binomial(alpha = Ennui_01prior_a, beta = Ennui_01prior_b,
+                                 y = obs_y, n = obs_n, likelihood = F, prior = F) + 
+  guides(fill = FALSE) + 
+  geom_text(x=0.75, y = yMax*.75, label =paste("Mean=",mean_Ennui) )+
+  labs(title = "Posterior: All Crimes")
+
+## Calc Means for the priors
+
+mean_fear <- fear_01prior_a / (fear_01prior_a + fear_01prior_b) 
+mean_fear <- mean_fear %>% round(2)
+p_fear_prior <- p_fear_prior + geom_text(x=0.75, y = yMax*.75, label = paste("Mean=",mean_fear) )
+
+mean_Ennuo <- Ennui_01prior_a / (Ennui_01prior_a + Ennui_01prior_b) %>%  round(2)
+p_Ennui_prior <- p_Ennui_prior + geom_text(x=0.75, y = yMax*.75, label = paste("Mean=", mean_Ennuo ) )
+mean_Ennuo <- mean_Ennuo %>% round(2)
+
+mean_joy <- joy_01prior_a / (joy_01prior_a + joy_01prior_b) %>%  round(2)
+mean_joy <- mean_joy %>% round(2)
+p_joy_prior <- p_joy_prior + geom_text(x=0.75, y = yMax*.75, label = paste("Mean=", mean_joy) )
+
+ggarrange(p_fear_prior,  p_fear_29, p_all_fear,
+          p_Ennui_prior,  p_Ennui_29, p_all_Ennui,
+          p_joy_prior,  p_joy_29, p_all_joy,
+          ncol = 3, nrow = 3
+          )
+
+rm(list = c("alpha", "beta", "crime", "decade_list", "decade_list2", "df", "df_a_Ennui", "df_a_fear", "df_a_joy", "df_b_Ennui", "df_b_fear", "df_b_joy",  "i", "max_densities", "mean_Ennui", "mean_Ennuo", "mean_fear", "mean_joy", "mode", "motive_categories", "obs_n", "obs_y", "observation", "p_all_Ennui", "p_all_fear", "p_all_joy", "p_Ennui_09", "p_Ennui_19", "p_Ennui_29", "yMax"))
+```
+
+
+
+## Villian Motive Competition
+
+**RK**
+
+```{r}
+motive_categories <- "competition"
+```
+
+
+## Villian Motive Power
+
+**Hooman**
+
+```{r}
+motive_categories <- "power"
+```
+
+
+## Villian Motive Greed
+
+**Johnny**
+
+```{r}
+motive_categories <- "greed"
+```
+
+
+
+## Summary 
+
+```{r}
+#| code-fold: true
+#| echo: false
+
+df_summary <- scooby_data %>% 
+  group_by(motive_cat) %>% 
+  summarize(obs_n = n(),
+            obs_y = sum(unmasked)) %>% 
+  ungroup() %>% 
+  filter(motive_cat != "else")
+
+All_thef_obs_df <- df_summary %>% filter(motive_cat == "theft")
+All_thef_obs_n <- as.numeric(All_thef_obs_df$obs_n[1])
+All_thef_obs_y <- as.numeric(All_thef_obs_df$obs_y[1])
+
+All_comp_obs_df <- df_summary %>% filter(motive_cat == "competition")
+All_comp_obs_n <- as.numeric(All_comp_obs_df$obs_n[1])
+All_comp_obs_y <- as.numeric(All_comp_obs_df$obs_y[1])
+
+All_greed_obs_df <- df_summary %>% filter(motive_cat == "greed")
+All_greed_obs_n <- as.numeric(All_greed_obs_df$obs_n[1])
+All_greed_obs_y <- as.numeric(All_greed_obs_df$obs_y[1])
+
+All_power_obs_df <- df_summary %>% filter(motive_cat == "power")
+All_power_obs_n <- as.numeric(All_power_obs_df$obs_n[1])
+All_power_obs_y <- as.numeric(All_power_obs_df$obs_y[1])
+
+All_motive_obs_df <- df_summary 
+All_motive_obs_n <- as.numeric(All_motive_obs_df$obs_n[1])
+All_motive_obs_y <- as.numeric(All_motive_obs_df$obs_y[1])
+
+# Fear Plots
+yMax <- 11.5
+p_thef_fear <- plot_beta_binomial(alpha = fear_01prior_a, beta = fear_01prior_b, n = All_thef_obs_n, y = All_thef_obs_y, likelihood = F ) + 
+  labs(title = "Theft", subtitle = "Fear") + ylim(NA, yMax)
+
+p_comp_fear <- plot_beta_binomial(alpha = fear_01prior_a, beta = fear_01prior_b, n = All_comp_obs_n, y =All_comp_obs_y, likelihood = F) + 
+  labs(title = "Competition", subtitle = "Fear") + ylim(NA, yMax)
+
+p_greed_fear <- plot_beta_binomial(alpha = fear_01prior_a, beta = fear_01prior_b, n = All_greed_obs_n, y =All_greed_obs_y, likelihood = F) + 
+  labs(title = "Greed", subtitle = "Fear") + ylim(NA, yMax)
+
+p_power_fear <- plot_beta_binomial(alpha = fear_01prior_a, beta = fear_01prior_b, n = All_power_obs_n, y =All_power_obs_y, likelihood = F) + 
+  labs(title = "Power", subtitle = "Fear") + ylim(NA, yMax)
+
+p_motive_fear <- plot_beta_binomial(alpha = fear_01prior_a, beta = fear_01prior_b, n = All_motive_obs_n, y =All_motive_obs_y, likelihood = F) + 
+  labs(title = "Any", subtitle = "Fear") + ylim(NA, yMax)
+
+# Ennui Plots
+# yMax <- 11
+p_thef_Ennui <- plot_beta_binomial(alpha = Ennui_01prior_a, beta = Ennui_01prior_b, n = All_thef_obs_n, y = All_thef_obs_y, likelihood = F ) +
+  labs(subtitle = "Ennui") + ylim(NA, yMax)
+
+p_comp_Ennui <- plot_beta_binomial(alpha = Ennui_01prior_a, beta = Ennui_01prior_b, n = All_comp_obs_n, y =All_comp_obs_y, likelihood = F) + 
+  guides(fill = FALSE) + labs(subtitle = "Ennui") + ylim(NA, yMax)
+
+p_greed_Ennui <- plot_beta_binomial(alpha = Ennui_01prior_a, beta = Ennui_01prior_b, n = All_greed_obs_n, y =All_greed_obs_y, likelihood = F) +
+  labs(subtitle = "Ennui") + ylim(NA, yMax)
+
+p_power_Ennui <- plot_beta_binomial(alpha = Ennui_01prior_a, beta = Ennui_01prior_b, n = All_power_obs_n, y =All_power_obs_y, likelihood = F) +
+  labs(subtitle = "Ennui") + ylim(NA, yMax)
+
+p_motive_Ennui <- plot_beta_binomial(alpha = Ennui_01prior_a, beta = Ennui_01prior_b, n = All_motive_obs_n, y =All_motive_obs_y, likelihood = F) +
+  labs(subtitle = "Ennui") + ylim(NA, yMax)
+
+# joy Plots
+# yMax <- 11
+p_thef_joy <- plot_beta_binomial(alpha = joy_01prior_a, beta = joy_01prior_b, n = All_thef_obs_n, y = All_thef_obs_y, likelihood = F ) +
+  labs(subtitle = "joy") + ylim(NA, yMax)
+
+p_comp_joy <- plot_beta_binomial(alpha = joy_01prior_a, beta = joy_01prior_b, n = All_comp_obs_n, y =All_comp_obs_y, likelihood = F) + 
+  guides(fill = FALSE) + labs(subtitle = "Joy") + ylim(NA, yMax)
+
+p_greed_joy <- plot_beta_binomial(alpha = joy_01prior_a, beta = joy_01prior_b, n = All_greed_obs_n, y =All_greed_obs_y, likelihood = F) +
+  labs(subtitle = "Joy") + ylim(NA, yMax)
+
+p_power_joy <- plot_beta_binomial(alpha = joy_01prior_a, beta = joy_01prior_b, n = All_power_obs_n, y =All_power_obs_y, likelihood = F) +
+  labs(subtitle = "Joy") + ylim(NA, yMax)
+
+p_motive_joy <- plot_beta_binomial(alpha = joy_01prior_a, beta = joy_01prior_b, n = All_motive_obs_n, y =All_motive_obs_y, likelihood = F) +
+  labs(subtitle = "Joy") + ylim(NA, yMax)
+
+ggarrange(
+p_thef_fear,p_comp_fear,p_greed_fear,p_power_fear,p_motive_fear,
+p_thef_Ennui,p_comp_Ennui,p_greed_Ennui,p_power_Ennui,p_motive_Ennui,
+p_thef_joy,p_comp_joy,p_greed_joy,p_power_joy,p_motive_joy,
+ncol = 5, nrow = 3
+,common.legend  = T)
+
+```
+
+
+```{r}
+
+```
+
